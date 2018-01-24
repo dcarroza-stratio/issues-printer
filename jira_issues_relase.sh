@@ -130,7 +130,7 @@ function _get_issue_html() {
     local estimate=$(echo "$issuejson" | jq -cMSr ".estimate")
     local parentkey=$(echo "$issuejson" | jq -cMSr ".parent")
     local fixversions=$(echo "$issuejson" | jq -cMSr ".fixVersions")
-    local affectedversions=$(echo "$issuejson" | jq -cMSr ".versions")
+    local affectedversions=$(echo "$issuejson" | jq -cMSr ".affectedVersions")
 
 # Discard subtasks
 if [[ "$issuetype" == "5" ]];then
@@ -172,11 +172,10 @@ echo "<div id='$id'>
     <tr class=cardbottom>
       <td class=priority><img class='priority' src='./images/priority/$priority.svg' />&nbsp;<img class='issuetype' src='./images/type/$issuetype.svg' /></td>
       <td class=storypoints><span class=storypoints>$SP</span></td>
-      <td class=issuetype><span>PR: </span></td>
     </tr>
     <tr>
-      <td class=storypoints><span class=storypoints>$affectedversions</span></td>
-      <td class=issuetype><span>$fixversions</span></td>
+      <td class=storypoints><span class=storypoints>Affect: $affectedversions</span></td>
+      <td class=storypoints><span class=storypoints>Fixed in: $fixversions</span></td>
     </tr>
   </table>
 </div>"
@@ -213,8 +212,7 @@ fi
 
 echo $issuesjson
 
-issues=$(echo "$issuesjson" | jq -cMSr ".issues | .[] " | jq -cMSr "{id,key,summary: .fields | .summary,SP: .fields | .customfield_10004,type: .fields | .issuetype | .id,typename: .fields | .issuetype | .name,priority: .fields | .priority | .id,priorityname: .fields | .priority | .name,estimate: .fields | .timetracking | .originalEstimateSeconds,parent: .fields | .parent | .key }")
-
+issues=$(echo "$issuesjson" | jq -cMSr ".issues | .[] " | jq -cMSr "{id,key,summary: .fields | .summary,SP: .fields | .customfield_10004,type: .fields | .issuetype | .id,typename: .fields | .issuetype | .name,priority: .fields | .priority | .id,priorityname: .fields | .priority | .name,estimate: .fields | .timetracking | .originalEstimateSeconds,parent: .fields | .parent | .key,fixVersions: .fields | .fixVersions | .[] | .name }")
 
 # convert to HTML
 rm ./output-$PROJECT-$BOARD.html
