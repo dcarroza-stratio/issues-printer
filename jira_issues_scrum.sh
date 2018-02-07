@@ -46,7 +46,7 @@ td {
     background-color: #FFFFFF; border: 0px;
 }
 tr.cardtop {
-    height: 15%; border: 0px;
+    height: 30px; border: 0px;
 }
 td.logo  {
     width: 40%; border: 0px solid powderblue; background-color: #62b6db; text-align: center; font-family: arial; font-weight: bold; font-style: normal; font-size: 18px; line-height: 18px; vertical-align: middle; 
@@ -65,6 +65,15 @@ td.summary {
 }
 tr.cardbottom {
     height: 15%;
+}
+td.versiontype  {
+    border: 0px solid #62b6db; text-align: left; font-family: arial; font-weight: bold; font-style: normal; font-size: 12px; vertical-align: middle;
+}
+td.version  {
+    border: 0px solid #62b6db; text-align: left; font-family: arial; font-style: normal; font-size: 12px; vertical-align: middle;
+}
+td.version span {
+  display: inline-block;
 }
 td.priority  {
     border: 0px solid #62b6db; text-align: left; font-family: arial; font-weight: bold; font-style: normal; font-size: 12px; vertical-align: middle; 
@@ -129,31 +138,34 @@ function _get_issue_html() {
     local priorityname=$(echo "$issuejson" | jq -cMSr ".priorityname")
     local estimate=$(echo "$issuejson" | jq -cMSr ".estimate")
     local parentkey=$(echo "$issuejson" | jq -cMSr ".parent")
+    local fixversions=$(echo "$issuejson" | jq -cMSr '.fixVersions | .[] | .name | "<span>\(.)</span>"')
+    local affectedversions=$(echo "$issuejson" | jq -cMSr '.affectedVersions | .[] | .name |  "<span>\(.)</span>"')
+    local targetversions=$(echo "$issuejson" | jq -cMSr '.targetVersions | .[] | .name | "<span>\(.)</span>"')
 
 # Discard subtasks
-if [[ "$issuetype" == "5" ]];then
-    echo ""
+#if [[ "$issuetype" == "5" ]];then
+#    echo "Issuetype!!!!! $issuetype"
 #    return 1
-fi
+#fi
 
 # if SP is not set, get from estimation
 if [[ "$SP" == "null" ]];then
-	aux=$(expr $(expr $estimate + 14399) / 14400)
-	SP=$(echo "scale=1;$aux / 2" | bc)
-	# remove .0 decimal...
-	if [[ "$SP" == *\.0 ]];then
-		SP=$(expr $aux / 2)
+  aux=$(expr $(expr $estimate + 14399) / 14400)
+  SP=$(echo "scale=1;$aux / 2" | bc)
+  # remove .0 decimal...
+  if [[ "$SP" == *\.0 ]];then
+    SP=$(expr $aux / 2)
         fi
 fi
 if [[ "$SP" == "0" ]];then
-	SP=""	
+  SP="" 
 fi
 # if parentkey is not set, avoid print
 if [[ "$parentkey" == "null" ]];then
-	parentkey=""
+  parentkey=""
 fi
 
-echo "<div id='$id'>
+htmlissue="<div id='$id'>
   <table class=card>
     <tr class=cardtop >
       <td class=logo><img class='logo' src='./images/logo-stratio-white.png' /></td>
@@ -170,10 +182,41 @@ echo "<div id='$id'>
     <tr class=cardbottom>
       <td class=priority><img class='priority' src='./images/priority/$priority.svg' />&nbsp;<img class='issuetype' src='./images/type/$issuetype.svg' /></td>
       <td class=storypoints><span class=storypoints>$SP</span></td>
-      <td class=issuetype><span>PR: </span></td>
     </tr>
+    "
+
+if [[ "$affectedversions" != "" ]];then
+  htmlissue="$htmlissue <tr>
+      <td class=versiontype>Affect:</td>
+    </tr>
+    <tr>
+      <td class=version colspan=3>$affectedversions</td>
+    </tr>" 
+fi
+
+if [[ "$fixversions" != "" ]];then
+  htmlissue="$htmlissue <tr>
+      <td class=versiontype>Fix:</td>
+    </tr>
+    <tr>
+      <td class=version colspan=3>$fixversions</td>
+    </tr>" 
+fi
+
+if [[ "$targetversions" != "" ]];then
+  htmlissue="$htmlissue <tr>
+      <td class=versiontype>Target:</td>
+    </tr>
+    <tr>
+      <td class=version colspan=3>$targetversions</td>
+    </tr>" 
+fi
+
+htmlissue="$htmlissue 
   </table>
 </div>"
+
+echo $htmlissue
 
 }
 
@@ -194,7 +237,7 @@ IFS=',' read -r status_code sprintjson <<< "$result"
 if [[ $status_code != 200 ]];then
       exit 1
 fi
-sprint_id=$(echo "$sprintjson" | jq -cMSr ".values | .[1] | .id")
+sprint_id=$(echo "$sprintjson" | jq -cMSr ".values | .[0] | .id")
 echo "SPRINT_ID: $sprint_id"
 
 
@@ -207,8 +250,7 @@ fi
 
 echo $issuesjson
 
-issues=$(echo "$issuesjson" | jq -cMSr ".issues | .[] " | jq -cMSr "{id,key,summary: .fields | .summary,SP: .fields | .customfield_10004,type: .fields | .issuetype | .id,typename: .fields | .issuetype | .name,priority: .fields | .priority | .id,priorityname: .fields | .priority | .name,estimate: .fields | .timetracking | .originalEstimateSeconds,parent: .fields | .parent | .key }")
-
+issues=$(echo "$issuesjson" | jq -cMSr ".issues | .[] " | jq -cMSr "{id,key,summary: .fields | .summary,SP: .fields | .customfield_10004,type: .fields | .issuetype | .id,typename: .fields | .issuetype | .name,priority: .fields | .priority | .id,priorityname: .fields | .priority | .name,estimate: .fields | .timetracking | .originalEstimateSeconds,parent: .fields | .parent | .key,fixVersions: .fields | .fixVersions,affectedVersions: .fields | .versions,targetVersions: .fields | .customfield_10700 }")
 
 # convert to HTML
 rm ./output-$PROJECT-$BOARD.html
@@ -216,7 +258,7 @@ _get_header_html >> ./output-$PROJECT-$BOARD.html
 IFS='
 '
 for issue in $issues; do
-	issue_html=$(_get_issue_html $issue)
-	echo "$issue_html" >> ./output-$PROJECT-$BOARD.html
+  issue_html=$(_get_issue_html $issue)
+  echo "$issue_html" >> ./output-$PROJECT-$BOARD.html
 done
 _get_footer_html >> ./output-$PROJECT-$BOARD.html

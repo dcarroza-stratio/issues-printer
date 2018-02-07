@@ -1,8 +1,7 @@
 #/bin/sh
 
 PROJECT=$1
-BOARD=$2
-COOKIE=$3
+COOKIE=$2
 
 
 STRATIO_JIRA="https://stratio.atlassian.net/rest/api/2"
@@ -132,11 +131,11 @@ function _get_issue_html() {
     local estimate=$(echo "$issuejson" | jq -cMSr ".estimate")
     local parentkey=$(echo "$issuejson" | jq -cMSr ".parent")
 
-# Discard subtasks
-if [[ "$issuetype" == "5" ]];then
-    echo "Issuetype!!!!! $issuetype"
-#    return 1
-fi
+## Discard subtasks
+#if [[ "$issuetype" == "5" ]];then
+#    echo "Issuetype!!!!! $issuetype"
+##    return 1
+#fi
 
 # if SP is not set, get from estimation
 if [[ "$SP" == "null" ]];then
@@ -220,12 +219,12 @@ issues=$(echo "$result" | jq -cMSr ".issues | .[] " | jq -cMSr "{id,key,summary:
 
 
 # convert to HTML
-rm ./output-$PROJECT-$BOARD.html
-_get_header_html >> ./output-$PROJECT-$BOARD.html
+rm ./output-$PROJECT.html
+_get_header_html >> ./output-$PROJECT.html
 IFS='
 '
 for issue in $issues; do
 	issue_html=$(_get_issue_html $issue)
-	echo "$issue_html" >> ./output-$PROJECT-$BOARD.html
+	echo "$issue_html" >> ./output-$PROJECT.html
 done
-_get_footer_html >> ./output-$PROJECT-$BOARD.html
+_get_footer_html >> ./output-$PROJECT.html
